@@ -5,12 +5,13 @@ const isCodeSandbox =
 
 export default {
   plugins: [react()],
+  assetsInclude: ['./src/assets1/3d/*.glb', './public/*.glb', '*.glb'],
   root: "example/",
   publicDir: "../public/",
   base: "./",
   server: {
-    host: true,
-    open: !isCodeSandbox, // Open if it's not a CodeSandbox
+    host: '0.0.0.0',
+    port: 5173,
   },
   build: {
     outDir: "./exampleDist",

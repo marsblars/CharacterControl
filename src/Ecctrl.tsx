@@ -6,6 +6,7 @@ import {
   CapsuleCollider,
   useRapier,
   RapierRigidBody,
+  useRevoluteJoint,
   type RigidBodyProps,
 } from "@react-three/rapier";
 import { useEffect, useRef, useMemo, type ReactNode, forwardRef, type RefObject } from "react";
@@ -23,26 +24,36 @@ import type {
 export { EcctrlAnimation } from "./EcctrlAnimation";
 export { useFollowCam } from "./hooks/useFollowCam";
 export { useGame } from "./stores/useGame";
-export { EcctrlJoystick } from "../src/EcctrlJoystick";
+export { EcctrlJoystick } from "./EcctrlJoystick";
 export { useJoystickControls } from "./stores/useJoystickControls";
 
 // Retrieve current moving direction of the character
-const getMovingDirection = (forward: boolean,
+export const getMovingDirection = (forward: boolean,
   backward: boolean,
   leftward: boolean,
   rightward: boolean,
   pivot: THREE.Object3D)
-  : number | null => {
-  if (!forward && !backward && !leftward && !rightward) return null;
-  if (forward && leftward) return pivot.rotation.y + Math.PI / 4;
-  if (forward && rightward) return pivot.rotation.y - Math.PI / 4;
-  if (backward && leftward) return pivot.rotation.y - Math.PI / 4 + Math.PI;
-  if (backward && rightward) return pivot.rotation.y + Math.PI / 4 + Math.PI;
-  if (backward) return pivot.rotation.y + Math.PI;
-  if (leftward) return pivot.rotation.y + Math.PI / 2;
-  if (rightward) return pivot.rotation.y - Math.PI / 2;
-  if (forward) return pivot.rotation.y;
+  :number | null => {
+    if (!forward && !backward && !leftward && !rightward) return null;
+    if (forward && leftward) return pivot.rotation.y + Math.PI / 4;
+    if (forward && rightward) return pivot.rotation.y - Math.PI / 4;
+    if (backward && leftward) return pivot.rotation.y - Math.PI / 4 + Math.PI;
+    if (backward && rightward) return pivot.rotation.y + Math.PI / 4 + Math.PI;
+    if (backward) return pivot.rotation.y + Math.PI;
+    if (leftward) return pivot.rotation.y + Math.PI / 2;
+    if (rightward) return pivot.rotation.y - Math.PI / 2;
+    if (forward) return pivot.rotation.y;
 };
+
+export const applyGForce = (gForceDirection: THREE.Vector3, bodyPosition: THREE.Vector3, bodyForce: THREE.Vector3, bodyMass: number) => {
+  gForceDirection.set(-bodyPosition.x, -bodyPosition.y, -bodyPosition.z);
+  gForceDirection.normalize();
+  gForceDirection.addScaledVector(
+    bodyForce, 0.1
+  );
+  bodyForce.y += bodyMass * 0.1;
+  return bodyForce;
+}
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   children,
@@ -55,7 +66,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   // Follow camera setups
   camInitDis = -5,
   camMaxDis = -7,
-  camMinDis = -0.7,
+  camMinDis = 0,
   camInitDir = { x: 0, y: 0, z: 0 }, // in rad
   camTargetPos = { x: 0, y: 0, z: 0 },
   camMoveSpeed = 1,
@@ -73,15 +84,14 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   jumpForceToGroundMult = 5,
   slopJumpMult = 0.25,
   sprintJumpMult = 1.2,
-  airDragMultiplier = 0.2,
+  airDragMultiplier = 10.2,
   dragDampingC = 0.15,
   accDeltaTime = 8,
   rejectVelMult = 4,
   moveImpulsePointY = 0.5,
   camFollowMult = 11,
-  fallingGravityScale = 2.5,
+  fallingGravityScale = 1,
   fallingMaxVel = -20,
-  wakeUpDelay = 200,
   // Floating Ray setups
   rayOriginOffest = { x: 0, y: -capsuleHalfHeight, z: 0 },
   rayHitForgiveness = 0.1,
@@ -110,7 +120,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   ...props
 }: EcctrlProps, ref) => {
   const characterRef = ref as RefObject<RapierRigidBody> || useRef<RapierRigidBody>()
+  const planetRef = ref as RefObject<RapierRigidBody> || useRef<RapierRigidBody>()
   const characterModelRef = useRef<THREE.Group>();
+  
 
   /** 
    * Body collider setup
@@ -123,6 +135,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   const bodyBalanceVecOnZ = useMemo(() => new THREE.Vector3(), []);
   const vectorY = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   const vectorZ = useMemo(() => new THREE.Vector3(0, 0, 1), []);
+  const vectorx = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+
 
   // Animation change functions
   const idleAnimation = !animated ? null : useGame((state) => state.idle);
@@ -137,7 +151,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   const action2Animation = !animated ? null : useGame((state) => state.action2);
   const action3Animation = !animated ? null : useGame((state) => state.action3);
   const action4Animation = !animated ? null : useGame((state) => state.action4);
-
+  const rayDir2 = { x: 0, y: 1, z: 0 }
+  
   /**
    * Debug settings
    */
@@ -408,7 +423,6 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   // can jump setup
   let canJump = false;
   let isFalling = false;
-  const initialGravityScale: number = useMemo(() => props.gravityScale || 1, [])
 
   // on moving object state
   let isOnMovingObject = false;
@@ -447,6 +461,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   const pivotPosition = useMemo(() => new THREE.Vector3(), []);
   const modelEuler = useMemo(() => new THREE.Euler(), []);
   const modelQuat = useMemo(() => new THREE.Quaternion(), []);
+  const modelQuat2 = useMemo(() => new THREE.Quaternion(), []);
   const moveImpulse = useMemo(() => new THREE.Vector3(), []);
   const movingDirection = useMemo(() => new THREE.Vector3(), []);
   const moveAccNeeded = useMemo(() => new THREE.Vector3(), []);
@@ -467,7 +482,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   const characterMassForce = useMemo(() => new THREE.Vector3(), []);
   const rayOrigin = useMemo(() => new THREE.Vector3(), []);
   const rayCast = new rapier.Ray(rayOrigin, rayDir);
+  const rayCast2 = new rapier.Ray(rayOrigin, rayDir2);
   let rayHit: RayColliderToi = null;
+  let rayHit2: RayColliderToi = null;
 
   /**Test shape ray */
   // const shape = new rapier.Capsule(0.2,0.1)
@@ -494,6 +511,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     slopeAngle: number,
     movingObjectVelocity: THREE.Vector3
   ) => {
+
+
     /**
      * Setup moving direction
      */
@@ -507,7 +526,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     } else if (actualSlopeAngle >= slopeMaxAngle) {
       movingDirection.set(
         0,
-        Math.sin(slopeAngle) > 0 ? 0 : Math.sin(slopeAngle),
+        Math.sin(slopeAngle) < 0 ? 0 : Math.sin(slopeAngle),
         Math.sin(slopeAngle) > 0 ? 0.1 : 1
       );
     } else {
@@ -565,6 +584,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const moveForceNeeded = moveAccNeeded.multiplyScalar(
       characterRef.current.mass()
     );
+  
 
     /**
      * Check if character complete turned to the wanted direction
@@ -655,13 +675,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
    * Character sleep function
    */
   const sleepCharacter = () => {
-    if (document.visibilityState === "hidden") {
-      characterRef.current.sleep()
-    } else {
-      setTimeout(() => {
-        characterRef.current.wakeUp()
-      }, wakeUpDelay)
-    }
+    characterRef.current.sleep()
   }
 
   useEffect(() => {
@@ -781,16 +795,17 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
   useEffect(() => {
     // Initialize character facing direction
-    modelEuler.y = characterInitDir
+    modelEuler.y = characterInitDir 
+/*     modelEuler.z = characterInitDir + Math.PI  */
     // Initialize camera facing direction
     pivot.rotation.x = camInitDir.x
     pivot.rotation.y = camInitDir.y
     pivot.rotation.z = camInitDir.z
 
-    window.addEventListener("visibilitychange", sleepCharacter);
+    window.addEventListener("blur", sleepCharacter);
 
     return () => {
-      window.removeEventListener("visibilitychange", sleepCharacter);
+      window.removeEventListener("blur", sleepCharacter);
     }
   }, [])
 
@@ -833,8 +848,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const { forward, backward, leftward, rightward, jump, run } = getKeys();
 
     // Getting moving directions (IIFE)
-    modelEuler.y = ((movingDirection) => movingDirection === null ? modelEuler.y : movingDirection)
-      (getMovingDirection(forward, backward, leftward, rightward, pivot))
+    modelEuler.y = ((movingDirection) => movingDirection === null ? modelEuler.y  : movingDirection)
+    (getMovingDirection(forward, backward, leftward, rightward, pivot ))
 
     // Move character to the moving direction
     if (forward || backward || leftward || rightward)
@@ -881,7 +896,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     pivotPosition.set(
       currentPos.x + camTargetPos.x,
       currentPos.y + (camTargetPos.y || (capsuleHalfHeight + capsuleRadius / 2)),
-      currentPos.z + camTargetPos.z
+      currentPos.z + camTargetPos.z 
     );
     pivot.position.lerp(pivotPosition, 1 - Math.exp(-camFollowMult * delta));
     state.camera.lookAt(pivot.position);
@@ -892,6 +907,18 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     rayOrigin.addVectors(currentPos, rayOriginOffest as THREE.Vector3);
     rayHit = world.castRay(
       rayCast,
+      rayLength,
+      true,
+      null,
+      null,
+      // I have no idea
+      characterRef.current as unknown as Collider,
+      null,
+      // this exclude with sensor collider
+      ((collider) => !collider.isSensor())
+    );
+    rayHit2 = world.castRay(
+      rayCast2,
       rayLength,
       true,
       null,
@@ -916,12 +943,24 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     // );
 
     if (rayHit && rayHit.toi < floatingDis + rayHitForgiveness) {
+/* console.log(rayHit ) */
+
+      if (slopeRayHit && actualSlopeAngle < slopeMaxAngle) {
+
+        canJump = true;
+      }
+    } else {
+      canJump = false;
+
+    }
+
+/*     if (rayHit && rayHit.toi < floatingDis + rayHitForgiveness) {
       if (slopeRayHit && actualSlopeAngle < slopeMaxAngle) {
         canJump = true;
       }
     } else {
       canJump = false;
-    }
+    } */
 
     /**
      * Ray detect if on rigid body or dynamic platform, then apply the linear velocity and angular velocity to character
@@ -934,10 +973,61 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
           rayOrigin.y - rayHit.toi,
           rayOrigin.z
         );
+      
         const rayHitObjectBodyType = rayHit.collider.parent().bodyType();
         const rayHitObjectBodyMass = rayHit.collider.parent().mass();
+        const gravityDirection = (rayHit.collider.parent().translation() as THREE.Vector3)
+        const gravityDirection2 = new THREE.Vector3()
+        let characterUp = new THREE.Vector3();
+        let verticalAlignmentRotation = new THREE.Quaternion()
+        let verticalAlignmentRotation2 = new THREE.Quaternion()
+/*         gravityDirection2.copy(gravityDirection.negate())
+
+
+        let forwardAxis = new THREE.Vector3(1, 0, 0);
+        let upRightAxis = new THREE.Vector3(0, 0, 1);
+        let oldPlayerPosition = new THREE.Vector3(0, 1, 0);
+        let newPlayerPosition = new THREE.Vector3();
+        let upRightAngle = 0;
+        let frontRightAngle = 0;
+        let angleBetweenPositions = 0;
+    
+        currentPos.copy(gravityDirection.multiplyScalar(-1));
+        angleBetweenPositions = currentPos.angleTo(
+          oldPlayerPosition
+        );
+    
+        if (angleBetweenPositions > 0) {
+          // If there is any position changes, get axises of playerGroup for latter update
+          playerGroup.getWorldDirection(playerGroupZAxis);
+          playerGroupYAxis
+            .copy(playerGroup.up)
+            .applyMatrix4(playerGroup.matrix)
+            .normalize();
+          playerGroupXAxis.crossVectors(
+            playerGroupZAxis,
+            playerGroupYAxis
+          );
+    
+          upRightAngle =
+            Math.PI / 2 - newPlayerPosition.angleTo(playerGroupXAxis);
+          frontRightAngle =
+            Math.PI / 2 - newPlayerPosition.angleTo(playerGroupZAxis);
+    
+          playerGroup.rotateOnAxis(upRightAxis, upRightAngle);
+          playerGroup.rotateOnAxis(forwardAxis, frontRightAngle);
+    
+          oldPlayerPosition.copy(newPlayerPosition);
+        } */
+    
         // Body type 0 is rigid body, body type 1 is fixed body, body type 2 is kinematic body
         // And if it stands on big mass object (>0.5)
+        distanceFromCharacterToObject
+        .copy(currentPos)
+        .sub(gravityDirection);
+        
+
+
         if (
           (rayHitObjectBodyType === 0 || rayHitObjectBodyType === 2) &&
           rayHitObjectBodyMass > 0.5
@@ -945,9 +1035,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
           isOnMovingObject = true;
 
           // Calculate distance between character and moving object
-          distanceFromCharacterToObject
-            .copy(currentPos)
-            .sub(rayHit.collider.parent().translation() as THREE.Vector3);
+
           // Moving object linear velocity
           const movingObjectLinvel = rayHit.collider
             .parent()
@@ -979,10 +1067,25 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 (currentVel.x - movingObjectVelocity.x) * dragDampingC,
                 0,
                 (currentVel.z - movingObjectVelocity.z) * dragDampingC
+
               );
             } else {
               movingObjectDragForce.copy(moveImpulse).negate();
             }
+/*             characterModelRef.current.matrix.extractBasis(
+              new THREE.Vector3(),
+              characterUp,
+              new THREE.Vector3()
+            )
+
+            verticalAlignmentRotation
+            .setFromUnitVectors(characterUp, gravityDirection2.multiplyScalar(-1))
+            .multiply(characterModelRef.current.quaternion)
+            characterModelRef.current.setRotationFromQuaternion(verticalAlignmentRotation)
+            characterRef.current.setAngularDamping(1)
+            verticalAlignmentRotation2.copy(verticalAlignmentRotation)
+            characterRef.current.setRotation(verticalAlignmentRotation2, true) */
+            
             rayHit.collider
               .parent()
               .applyImpulseAtPoint(
@@ -990,10 +1093,14 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 standingForcePoint,
                 true
               );
+
           }
+          
         } else {
           isOnMovingObject = false;
           movingObjectVelocity.set(0, 0, 0);
+/*           characterModelRef.current.getWorldDirection(characterUp) */
+
         }
       }
     }
@@ -1030,9 +1137,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
           actualSlopeNormal.z
         );
         actualSlopeAngle = actualSlopeNormalVec?.angleTo(floorNormal);
+
       }
     }
-    if (slopeRayHit && rayHit && slopeRayHit.toi < floatingDis + 0.5) {
+    if (slopeRayHit && rayHit && slopeRayHit.toi < floatingDis - 0.5) {
       if (canJump) {
         // Round the slope angle to 2 decimal places
         slopeAngle = Number(
@@ -1061,7 +1169,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         );
 
         // Apply opposite force to standing object (gravity g in rapier is 0.11 ?_?)
-        characterMassForce.set(0, floatingForce > 0 ? -floatingForce : 0, 0);
+        characterMassForce.set(0, floatingForce > 0 ? -floatingForce  : 0, 0);
         rayHit.collider
           .parent()
           ?.applyImpulseAtPoint(characterMassForce, standingForcePoint, true);
@@ -1095,19 +1203,18 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     /**
      * Detect character falling state
      */
-    isFalling = (currentVel.y < 0 && !canJump) ? true : false
+    isFalling = (currentVel.y < 0 && !canJump ) ? true : false
 
     /**
      * Apply larger gravity when falling
      */
     if (characterRef.current) {
-      if (currentVel.y < fallingMaxVel && characterRef.current.gravityScale() !== 0) {
-        characterRef.current.setGravityScale(0, true)
-      } else if (isFalling && characterRef.current.gravityScale() !== fallingGravityScale) {
-        characterRef.current.setGravityScale(fallingGravityScale, true)
-      } else if (!isFalling && characterRef.current.gravityScale() !== initialGravityScale) {
-        characterRef.current.setGravityScale(initialGravityScale, true)
-      }
+      characterRef.current.setGravityScale(
+        0,
+        true
+      )
+
+      
     }
 
     /**
@@ -1149,20 +1256,22 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         fallAnimation();
       }
     }
+
   });
+  
 
   return (
+    <>
     <RigidBody
       colliders={false}
       ref={characterRef}
       position={props.position || [0, 5, 0]}
       friction={props.friction || -0.5}
       {...props}
+
+      
     >
-      <CapsuleCollider
-        name="character-capsule-collider"
-        args={[capsuleHalfHeight, capsuleRadius]} 
-      />
+      <CapsuleCollider args={[capsuleHalfHeight, capsuleRadius]} />
       <group ref={characterModelRef} userData={{ camExcludeCollision: true }}>
         {/* This mesh is used for positioning the slope ray origin */}
         <mesh
@@ -1178,9 +1287,12 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
           <boxGeometry args={[0.15, 0.15, 0.15]} />
         </mesh>
         {/* Character model */}
+
         {children}
       </group>
     </RigidBody>
+    </>
+
   );
 })
 
@@ -1223,7 +1335,6 @@ export interface EcctrlProps extends RigidBodyProps {
   camFollowMult?: number;
   fallingGravityScale?: number;
   fallingMaxVel?: number;
-  wakeUpDelay?: number;
   // Floating Ray setups
   rayOriginOffest?: { x: number; y: number; z: number };
   rayHitForgiveness?: number;

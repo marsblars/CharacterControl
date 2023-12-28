@@ -97,11 +97,6 @@ const JoystickComponents = (props: EcctrlJoystickProps) => {
         resetJoystick()
     }
 
-    // Reset window size function
-    const onWindowResize = () => {
-        setWindowSize({ innerHeight: window.innerHeight, innerWidth: window.innerWidth })
-    }
-
     useEffect(() => {
         const joystickPositionX = joystickDiv.getBoundingClientRect().x
         const joystickPositionY = joystickDiv.getBoundingClientRect().y
@@ -116,12 +111,12 @@ const JoystickComponents = (props: EcctrlJoystickProps) => {
         joystickDiv.addEventListener("touchmove", onTouchMove, { passive: false })
         joystickDiv.addEventListener("touchend", onTouchEnd)
 
-        window.visualViewport.addEventListener("resize", onWindowResize)
+        window.addEventListener("resize", () => { setWindowSize({ innerHeight: window.innerHeight, innerWidth: window.innerWidth }) })
 
         return () => {
             joystickDiv.removeEventListener("touchmove", onTouchMove)
             joystickDiv.removeEventListener("touchend", onTouchEnd)
-            window.visualViewport.removeEventListener("resize", onWindowResize)
+            window.removeEventListener("resize", () => { })
         }
     })
 

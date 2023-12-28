@@ -293,3 +293,5 @@ export type CharacterModelProps = JSX.IntrinsicElements["group"];
 
 // Change the character src to yours
 useGLTF.preload("/Floating Character.glb");
+
+

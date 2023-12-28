@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useThree } from "@react-three/fiber";
+import { useThree, useFrame } from "@react-three/fiber";
 import { RapierRigidBody, RigidBody } from "@react-three/rapier";
 import { useRef, useMemo, useState, useEffect } from "react";
 
@@ -10,7 +10,10 @@ export default function ShotCube() {
 
   const position = useMemo(() => new THREE.Vector3(), []);
   const direction = useMemo(() => new THREE.Vector3(), []);
-
+  const characterModelRef = useRef<THREE.Group>();
+  const characterRef = useRef<RapierRigidBody>()
+  const currentPos = useMemo(() => new THREE.Vector3(), []);
+  
   const clickToCreateBox = () => {
     if (document.pointerLockElement) {
       camera.parent.getWorldPosition(position);
@@ -20,13 +23,22 @@ export default function ShotCube() {
           castShadow
           receiveShadow
         >
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          
+          <sphereGeometry args={ [0.1]}/>
           <meshStandardMaterial color="orange" />
         </mesh>
       );
       setCubeMesh((prevMeshes) => [...prevMeshes, newMesh]);
     }
   };
+  useFrame((state) => {
+
+  if (characterRef.current) {
+    currentPos.copy((characterRef.current.translation() as THREE.Vector3));
+  }
+
+});
+ 
 
   useEffect(() => {
     camera.parent.getWorldDirection(direction);

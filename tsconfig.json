@@ -3,14 +3,16 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipDefaultLibCheck": true,
-    "target": "ESNext",
-    "verbatimModuleSyntax": true,
+    "target": "es2020",
+    "verbatimModuleSyntax": false,
     "strict": true,
     "noEmit": true,
     "moduleResolution": "node",
     "strictNullChecks": false,
     "jsx": "react-jsx",
     "declaration": true,
-    "lib": ["es2022", "dom"]
+    "lib": ["es2022", "dom"],
+    "allowJs": true,
+    "types": ["vite/client"]
   }
 }

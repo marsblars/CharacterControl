@@ -6,12 +6,13 @@ const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in proc
 
 const dev = defineConfig({
   plugins: [react()],
+  assetsInclude: ['./src/assets1/3d/*.glb', './*.glb', '*.glb', '*.css'],
   root: 'example/',
   publicDir: "../public/",
   base: './',
   server: {
-    host: true,
-    open: !isCodeSandbox // Open if it's not a CodeSandbox
+    host: '0.0.0.0',
+    port: 5173,
   }
 })
 
