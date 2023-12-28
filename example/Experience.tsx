@@ -5,8 +5,6 @@ import React, { useRef, Suspense, useEffect, useMemo} from "react";
 import { Attractor } from "./attractor";
 import { Canvas, useThree, useFrame, MeshStandardMaterialProps } from "@react-three/fiber";
 import Ecctrl from "../src/Ecctrl";
-import Map from "./Map";
-import Planet from "./Planet";
 import Floor from "./Floor";
 import Lights from "./Lights";
 import Steps from "./Steps";
