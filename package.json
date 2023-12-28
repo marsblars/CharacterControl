@@ -12,10 +12,6 @@
     "control",
     "character-control"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pmndrs/ecctrl.git"
-  },
   "files": [
     "dist/*",
     "src/*"
