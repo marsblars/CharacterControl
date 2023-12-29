@@ -150,9 +150,9 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
             followLight
             springK={2}
             dampingC={0.2}
-            autoBalance
-            autoBalanceSpringK={1.2}
-            autoBalanceDampingC={0.04}
+            autoBalance={false}
+/*             autoBalanceSpringK={1.2}
+            autoBalanceDampingC={0.04} */
             ref={characterRef}
             camCollision
             collisionGroups={interactionGroups(2)}
@@ -178,7 +178,7 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
       </mesh>
       {/* <Planet /> */}
 
-    <Attractor collisionGroups={interactionGroups(1, 2)}  type="static" range={305} strength={0.5} />
+    <Attractor collisionGroups={interactionGroups(1, 2)}  type="static" range={305} strength={0.3} />
     </RigidBody>
  
        

@@ -83,13 +83,13 @@ export const applyAttractorForceOnRigidBody = (
   }
 ) => {
   const rbPosition = rigidBody.translation();
-  _position.set(rbPosition.x, rbPosition.y, rbPosition.z);
+/*   _position.set(rbPosition.x, rbPosition.y, rbPosition.z); */
 
   const worldPosition = object.getWorldPosition(new Vector3());
 
-  const distance: number = worldPosition.distanceTo(_position);
+  const distance: number = worldPosition.distanceTo(vec3(rbPosition));
  
-
+  rigidBody.setAngularDamping(1)
 
   if (distance < range) {
     let force = calcForceByType[type](
@@ -123,7 +123,7 @@ export const applyAttractorForceOnRigidBody = (
     if (isRigidBodyInCollisionGroup) {
       _vector3
         .set(0, 0, 0)
-        .subVectors(worldPosition, _position)
+        .subVectors(worldPosition, vec3(rbPosition))
         .normalize()
         .multiplyScalar(force);
         rigidBody.applyImpulse(_vector3, true);
@@ -131,13 +131,13 @@ export const applyAttractorForceOnRigidBody = (
         const gravityDirection = vec3(_vector3).normalize().multiplyScalar(-1);
         let characterUp = new Vector3()
         
-        object.parent.matrixWorld.extractBasis(
+        object.matrixWorld.extractBasis(
             new Vector3(),
             characterUp,
             new Vector3()
         
         )
-  
+/*         console.log(characterUp) */
         let verticalAlignmentRotation = new Quaternion()
         verticalAlignmentRotation
         .setFromUnitVectors(characterUp, gravityDirection)
@@ -145,7 +145,7 @@ export const applyAttractorForceOnRigidBody = (
 /*         .multiply(quat(rigidBody.rotation())) */
         
       /*       rigidBody.setEnabledRotations(false,false,false,false) */
-        rigidBody.setAngularDamping(1)
+        
         rigidBody.setRotation(verticalAlignmentRotation, true)
 /*         object.setRotationFromQuaternion(verticalAlignmentRotation) */
 /*         console.log(object.quaternion) */

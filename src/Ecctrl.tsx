@@ -372,7 +372,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
       "AutoBalance Force",
       {
         autoBalance: {
-          value: true,
+          value: false,
         },
         autoBalanceSpringK: {
           value: autoBalanceSpringK,
