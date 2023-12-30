@@ -7,6 +7,7 @@ import {
   useRapier,
   RapierRigidBody,
   useRevoluteJoint,
+  vec3,
   type RigidBodyProps,
 } from "@react-three/rapier";
 import { useEffect, useRef, useMemo, type ReactNode, forwardRef, type RefObject } from "react";
@@ -45,15 +46,6 @@ export const getMovingDirection = (forward: boolean,
     if (forward) return pivot.rotation.y;
 };
 
-export const applyGForce = (gForceDirection: THREE.Vector3, bodyPosition: THREE.Vector3, bodyForce: THREE.Vector3, bodyMass: number) => {
-  gForceDirection.set(-bodyPosition.x, -bodyPosition.y, -bodyPosition.z);
-  gForceDirection.normalize();
-  gForceDirection.addScaledVector(
-    bodyForce, 0.1
-  );
-  bodyForce.y += bodyMass * 0.1;
-  return bodyForce;
-}
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   children,
@@ -943,8 +935,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     // );
 
     if (rayHit && rayHit.toi < floatingDis + rayHitForgiveness) {
-/* console.log(rayHit ) */
-
+/* console.log(rayHit )
+ */
       if (slopeRayHit && actualSlopeAngle < slopeMaxAngle) {
 
         canJump = true;
@@ -1184,7 +1176,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
       if (!isOnMovingObject) {
         dragForce.set(
           -currentVel.x * dragDampingC,
-          0,
+          -currentVel.y * dragDampingC,
           -currentVel.z * dragDampingC
         );
         characterRef.current.applyImpulse(dragForce, false);
@@ -1203,8 +1195,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     /**
      * Detect character falling state
      */
-    isFalling = (currentVel.y < 0 && !canJump ) ? true : false
-
+    isFalling = (currentVel.y < 10 && !canJump ) ? true : false
+/* console.log(currentVel.y) */
     /**
      * Apply larger gravity when falling
      */

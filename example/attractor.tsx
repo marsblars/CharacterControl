@@ -2,7 +2,7 @@ import React from "react";
 import { InteractionGroups, RigidBody } from "@dimforge/rapier3d-compat";
 import { useBeforePhysicsStep, useRapier, quat, vec3 } from "@react-three/rapier";
 import { FC, memo, useRef, RefObject } from "react";
-import { Object3D, Vector3, Quaternion } from "three";
+import { Object3D, Vector3, Quaternion, Sphere, Box3 } from "three";
 import { Object3DProps, useFrame, useThree } from "@react-three/fiber";
 import { AttractorDebugHelper } from "./attractorDebugHelper";
 import * as THREE from "three"
@@ -82,13 +82,19 @@ export const applyAttractorForceOnRigidBody = (
     object: Object3D;
   }
 ) => {
+
+
+
+
   const rbPosition = rigidBody.translation();
 /*   _position.set(rbPosition.x, rbPosition.y, rbPosition.z); */
 
-  const worldPosition = object.getWorldPosition(new Vector3());
+  const worldPosition =  object.getWorldPosition(new Vector3()); 
 
   const distance: number = worldPosition.distanceTo(vec3(rbPosition));
  
+
+
   rigidBody.setAngularDamping(1)
 
   if (distance < range) {
@@ -130,7 +136,7 @@ export const applyAttractorForceOnRigidBody = (
         
         const gravityDirection = vec3(_vector3).normalize().multiplyScalar(-1);
         let characterUp = new Vector3()
-        
+/*         console.log(worldPosition) */
         object.matrixWorld.extractBasis(
             new Vector3(),
             characterUp,

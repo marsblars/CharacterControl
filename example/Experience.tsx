@@ -1,6 +1,6 @@
 import { Grid, KeyboardControls, Loader, PointerLockControls, PresentationControls } from "@react-three/drei";
 import { Perf } from "r3f-perf";
-import { Physics, RigidBody, RapierRigidBody, BallCollider, interactionGroups} from "@react-three/rapier";
+import { Physics, RigidBody, RapierRigidBody, BallCollider, interactionGroups, vec3 } from "@react-three/rapier";
 import React, { useRef, Suspense, useEffect, useMemo} from "react";
 import { Attractor } from "./attractor";
 import { Canvas, useThree, useFrame, MeshStandardMaterialProps } from "@react-three/fiber";
@@ -33,6 +33,7 @@ export default function Experience() {
   const vectorY = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   const vectorZ = useMemo(() => new THREE.Vector3(0, 0, 1), []);
   const vectorx = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+  const Vector3 = useMemo(() => new THREE.Vector3(0, 0, 0), []);
   /**
    * Debug settings
    */
@@ -70,22 +71,18 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
 
 
 /* 	useFrame((state) => {
-		const time = state.clock.getElapsedTime();
-		const eulerRotation = new THREE.Euler(0, time * speed , 0);
-		const eRotation = new THREE.Euler(time * speed, 0 , 0);
-		const quaternion = new THREE.Quaternion();
-		
+     const rbPosition = characterRef.current.worldCom();
+    const worldPosition = planetRef.current.worldCom();
+    Vector3
+    .subVectors(vec3(rbPosition),vec3(worldPosition))
+    .normalize()
+    .multiplyScalar(-1)
+characterRef.current.setAngularDamping(1)
+characterRef.current.applyImpulse(Vector3, true); 
+  
 
 
-    if (characterRef.current) {
-      currentPos.copy((characterRef.current.translation() as THREE.Vector3));
-
-    }
-    quaternion.setFromEuler(eulerRotation);
-    quatY.setFromEuler(eRotation);
-		planetRef.current?.setRotation(quatY, true); */
-	/* 	characterRef.current?.setRotation(quatZ, true); */
-	/* }); */
+	 }); */
 /*   useFrame((state) => {
     time = state.clock.elapsedTime;
 
@@ -105,8 +102,7 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
     
   
     }); */
-    const characterModelRef = useRef<THREE.Group>();
-    let rlud = false;
+
 /*   useFrame((state, delta) => { 
     
     if (characterRef.current.isMoving()) {
@@ -156,6 +152,7 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
             ref={characterRef}
             camCollision
             collisionGroups={interactionGroups(2)}
+            
           >
             {/* Replace your model here */}
             <group>
@@ -170,7 +167,7 @@ const currentVel = useMemo(() => new THREE.Vector3(), []);
     </RigidBody>
  */}
 
-    <RigidBody type="fixed" gravityScale={0}  colliders={false}  position={[0,-25,0]} collisionGroups={interactionGroups(1)} scale={1.5} >    
+    <RigidBody type="fixed" ref={planetRef} gravityScale={0}  colliders={false}  position={[0,0,0]} collisionGroups={interactionGroups(1)} scale={1.5} >    
     <BallCollider args={[8]} />
       <mesh>
         <sphereGeometry args={[8]}/>
