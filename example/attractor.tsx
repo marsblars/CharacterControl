@@ -133,30 +133,34 @@ export const applyAttractorForceOnRigidBody = (
         .normalize()
         .multiplyScalar(force);
         rigidBody.applyImpulse(_vector3, true);
+     
         
+
         const gravityDirection = vec3(_vector3).normalize().multiplyScalar(-1);
         let characterUp = new Vector3()
-/*         console.log(worldPosition) */
+/*         console.log(characterUp) */
         object.matrixWorld.extractBasis(
             new Vector3(),
             characterUp,
             new Vector3()
         
         )
+
+        rigidBody.setAngularDamping(1)
+        
 /*         console.log(characterUp) */
         let verticalAlignmentRotation = new Quaternion()
         verticalAlignmentRotation
         .setFromUnitVectors(characterUp, gravityDirection)
         /* .angleTo(quat(rigidBody.rotation()).invert()) */
-/*         .multiply(quat(rigidBody.rotation())) */
+/*         .multiply(object.quaternion) */
         
       /*       rigidBody.setEnabledRotations(false,false,false,false) */
         
         rigidBody.setRotation(verticalAlignmentRotation, true)
 /*         object.setRotationFromQuaternion(verticalAlignmentRotation) */
 /*         console.log(object.quaternion) */
-            
-      
+
 
       
     }

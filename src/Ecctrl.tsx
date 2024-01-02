@@ -1,5 +1,5 @@
 import { useKeyboardControls } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   quat,
   RigidBody,
@@ -88,7 +88,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   rayOriginOffest = { x: 0, y: -capsuleHalfHeight, z: 0 },
   rayHitForgiveness = 0.1,
   rayLength = capsuleRadius + 2,
-  rayDir = { x: 0, y: -1, z: 0 },
+/*   rayDir = { x: 0, y: -1, z: 0 }, */
   floatingDis = capsuleRadius + floatHeight,
   springK = 1.2,
   dampingC = 0.08,
@@ -281,7 +281,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
           max: capsuleRadius + 10,
           step: 0.01,
         },
-        rayDir: { x: 0, y: -1, z: 0 },
+/*         rayDir: { x: 0, y: -1, z: 0 }, */
         floatingDis: {
           value: capsuleRadius + floatHeight,
           min: 0,
@@ -307,7 +307,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     rayOriginOffest = floatingRayDebug.rayOriginOffest;
     rayHitForgiveness = floatingRayDebug.rayHitForgiveness;
     rayLength = floatingRayDebug.rayLength;
-    rayDir = floatingRayDebug.rayDir;
+/*     rayDir = floatingRayDebug.rayDir; */
     floatingDis = floatingRayDebug.floatingDis;
     springK = floatingRayDebug.springK;
     dampingC = floatingRayDebug.dampingC;
@@ -473,10 +473,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
   const springDirVec = useMemo(() => new THREE.Vector3(), []);
   const characterMassForce = useMemo(() => new THREE.Vector3(), []);
   const rayOrigin = useMemo(() => new THREE.Vector3(), []);
+  const rayDir = useMemo(() => new THREE.Vector3(0,-1,0), []);
   const rayCast = new rapier.Ray(rayOrigin, rayDir);
-  const rayCast2 = new rapier.Ray(rayOrigin, rayDir2);
+
   let rayHit: RayColliderToi = null;
-  let rayHit2: RayColliderToi = null;
+
 
   /**Test shape ray */
   // const shape = new rapier.Capsule(0.2,0.1)
@@ -893,10 +894,19 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     pivot.position.lerp(pivotPosition, 1 - Math.exp(-camFollowMult * delta));
     state.camera.lookAt(pivot.position);
 
+    
+
     /**
      * Ray casting detect if on ground
      */
     rayOrigin.addVectors(currentPos, rayOriginOffest as THREE.Vector3);
+    rayDir
+    .set(0, 0, 0)
+    .subVectors(new THREE.Vector3(0,0,0),currentPos)
+    .normalize()
+
+
+
     rayHit = world.castRay(
       rayCast,
       rayLength,
@@ -909,18 +919,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
       // this exclude with sensor collider
       ((collider) => !collider.isSensor())
     );
-    rayHit2 = world.castRay(
-      rayCast2,
-      rayLength,
-      true,
-      null,
-      null,
-      // I have no idea
-      characterRef.current as unknown as Collider,
-      null,
-      // this exclude with sensor collider
-      ((collider) => !collider.isSensor())
-    );
+
     /**Test shape ray */
     // rayHit = world.castShape(
     //   currentPos,
@@ -933,16 +932,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     //   null,
     //   characterRef.current
     // );
+    console.log(rayHit )
+    if (rayHit && rayHit.toi) {
 
-    if (rayHit && rayHit.toi < floatingDis + rayHitForgiveness) {
-/* console.log(rayHit )
- */
-      if (slopeRayHit && actualSlopeAngle < slopeMaxAngle) {
 
-        canJump = true;
-      }
-    } else {
-      canJump = false;
+      canJump = true;
 
     }
 
@@ -1064,19 +1058,6 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             } else {
               movingObjectDragForce.copy(moveImpulse).negate();
             }
-/*             characterModelRef.current.matrix.extractBasis(
-              new THREE.Vector3(),
-              characterUp,
-              new THREE.Vector3()
-            )
-
-            verticalAlignmentRotation
-            .setFromUnitVectors(characterUp, gravityDirection2.multiplyScalar(-1))
-            .multiply(characterModelRef.current.quaternion)
-            characterModelRef.current.setRotationFromQuaternion(verticalAlignmentRotation)
-            characterRef.current.setAngularDamping(1)
-            verticalAlignmentRotation2.copy(verticalAlignmentRotation)
-            characterRef.current.setRotation(verticalAlignmentRotation2, true) */
             
             rayHit.collider
               .parent()
@@ -1195,7 +1176,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     /**
      * Detect character falling state
      */
-    isFalling = (currentVel.y < 10 && !canJump ) ? true : false
+    isFalling = ( !canJump ) ? true : false
 /* console.log(currentVel.y) */
     /**
      * Apply larger gravity when falling
@@ -1331,7 +1312,7 @@ export interface EcctrlProps extends RigidBodyProps {
   rayOriginOffest?: { x: number; y: number; z: number };
   rayHitForgiveness?: number;
   rayLength?: number;
-  rayDir?: { x: number; y: number; z: number };
+/*   rayDir?: { x: number; y: number; z: number }; */
   floatingDis?: number;
   springK?: number;
   dampingC?: number;
